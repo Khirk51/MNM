@@ -10,7 +10,7 @@ class Taikhoan extends Controller{
 
     //show mian
     function product(){
-        $this->view("dangnhap",[]);
+        $this->view("sig/dangnhap",[]);
     }
 
     //regiter
@@ -25,7 +25,7 @@ class Taikhoan extends Controller{
 
 
             if(empty($username) || empty($password)|| empty($repassword)|| empty($email)|| empty($name)){
-                $this->view('dangky',dataSend("Nhập đầy đủ thông tin để đăng ký!",$email,$name,$username));
+                $this->view('sig/dangky',dataSend("Nhập đầy đủ thông tin để đăng ký!",$email,$name,$username));
             }else{
 
 
@@ -41,14 +41,26 @@ class Taikhoan extends Controller{
 
                 // xử lý đầu ra
                 if($msg != ""){
-                    $this->view('dangky',dataSend($msg,$email,$name,$username));
+                    $this->view('sig/dangky',dataSend($msg,$email,$name,$username));
                 }else{
+                    $dataInsert = ["username"=>$username,
+                    "password"=>$password,
+                    "email"=>$email,
+                    "name"=>$name,
+                    ];
+                    if($this->taikhoanModel->insertUser($dataInsert)){
+                        $_SESSION["user"]=$username;
+                        header("location: ".URLDEFAULT."/Trangchu");
 
+                    }else{
+                        $this->view('sig/dangky',dataSend($this->taikhoanModel->insertUser($dataInsert),$email,$name,$username));
+    
+                    }
                 }
             }
           
         }else{
-            $this->view('dangky',[]); 
+            $this->view('sig/dangky',[]); 
         }
     }
 
@@ -58,28 +70,50 @@ class Taikhoan extends Controller{
         if(isset($_POST['btnLogin'])){
             $username = $_POST["usernameTxt"];
             $password = $_POST["passwordTxt"];
-            if(empty($username) || empty($password)){
-                $this->view('dangnhap',["result"=>"Nhập đầy đủ thông tin để đăng nhập!"]);
+            $captcha = $_POST["captchaTxt"];
+            if(empty($username) || empty($password) || empty($captcha)){
+                $this->view('sig/dangnhap',["result"=>"Nhập đầy đủ thông tin để đăng nhập!"]);
             }
-            $result = $this->taikhoanModel->login($username);
-            if(mysqli_num_rows($result)){
-                while($row = mysqli_fetch_array($result)){
-                    $id = $row["id"];
-                    $username_sql = $row["Username"];
-                    $password_sql = $row["Password"];
-                }
-                if( md5($password) == $password_sql) {
-                    $_SESSION["id"] = $id;
-                    header("location: ".URLDEFAULT."/Trangchu");
+            if($captcha == $_SESSION["captcha"]){
+                $result = $this->taikhoanModel->info($username);
+                if(mysqli_num_rows($result)){
+                    while($row = mysqli_fetch_array($result)){
+                        $id = $row["user_id"];
+                        $username_sql = $row["Username"];
+                        $password_sql = $row["Password"];
+                    }
+                    if(password_verify($password,$password_sql)) {
+                        $row = mysqli_fetch_array($this->taikhoanModel->info($username_sql));
+                        $_SESSION["user"] = $row["user_id"];
+                        $_SESSION["username"] = $username_sql;
+                        $_SESSION["Name"] = $row["Name"];
+                        $_SESSION["Email"] =  $row["Email"];
+                        $_SESSION["Phone"] =  $row["Phone"];
+                        $_SESSION["Avatar"] =  $row["Avatar"];
+                        $_SESSION["ROLE"] =  $row["Role"];
+
+                        $_SESSION["captcha"] = rand(0,9).rand(0,9).rand(0,9).rand(0,9);
+                        header("location: ".URLDEFAULT."/Trangchu");
+                    }else{
+                        $this->view('sig/dangnhap',["result"=>"Mật khẩu không chính xác!","username"=>$username]); 
+                    }
                 }else{
-                    $this->view('dangnhap',["result"=>"Mật khẩu không chính xác!","username"=>$username]); 
+                    $this->view('sig/dangnhap',["result"=>"Tài khoản không tồn tại!","username"=>$username]); 
                 }
             }else{
-                $this->view('dangnhap',["result"=>"Tài khoản không tồn tại!","username"=>$username]); 
-            }
+                $this->view('sig/dangnhap',["result"=>"Mã xác nhận không hợp lệ!","username"=>$username]); 
+         }
+                      
         }else{
-            $this->view('dangnhap',[]); 
+            $this->view('sig/dangnhap',[]); 
         }
+    }
+
+    //dangxuat
+    function dangxuat(){
+        unset($_SESSION["id"]);
+        session_destroy();
+        $this->view('sig/dangnhap',[]);
     }
 }
 
